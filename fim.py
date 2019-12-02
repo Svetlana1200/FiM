@@ -140,55 +140,59 @@ class Lexer:
             self.index += 1
 
     def next_tok(self):
-        self.value = None
+        self.value = ""
         self.sym = None
         while self.ch.isspace():
             self.getc()
-        if self.ch.isalpha() and not self.has_command:  # команда
-            ident = ''
-            while ((self.ch.isalpha() or self.ch == "'" or
-                   self.ch == "," or self.ch.isspace() or
-                   self.ch == "'") and self.sym is None):
-                if ident in Lexer.WORDS:
-                    self.sym = Lexer.WORDS[ident]
-                    break
-                ident = ident + self.ch.lower()
-                self.getc()
-            if ident in Lexer.WORDS:
-                self.sym = Lexer.WORDS[ident]
-            self.value = ident
-            self.has_command = True
-
+        if self.ch.isalpha() and not self.has_command:
+            self.get_command()
         elif self.ch.isalpha() or self.ch.isspace() or self.ch.isdigit():
-            ident = ''
-            while ((self.ch.isalpha() or self.ch.isspace()
-                   or self.ch.isdigit() or self.ch == "'"
-                   or self.ch == "*" or self.ch == "-" or self.ch == "+")
-                   and self.sym is None):
-                ident = ident + self.ch
-                self.getc()
-            self.value = ident
-            self.sym = SymbolAndCommand.ID
-
-        elif self.ch == "\"":  # строка в кавычках
-            ident = ''
-            self.getc()
-            while (self.ch != "\"") and self.sym is None and self.ch is not None:
-                ident = ident + self.ch
-                self.getc()
-            self.getc()
-            self.value = ident
-            self.sym = SymbolAndCommand.STRING
-
-        elif self.ch in Lexer.SYMBOLS:  # символ окончания строки
-            self.has_command = False
-            ident = ''
-            while self.ch in Lexer.SYMBOLS:
-                ident += self.ch
-                self.getc()
-            self.value = ident
-            self.sym = SymbolAndCommand.PUNCTUATION
+            self.get_arguments()
+        elif self.ch == "\"":
+            self.get_str_in_quater()
+        elif self.ch in Lexer.SYMBOLS:
+            self.get_punctuation()
         return self.value.rstrip(), self.sym
+
+    def get_command(self):
+        while ((self.ch.isalpha() or self.ch == "'" or
+                self.ch == "," or self.ch.isspace() or
+                self.ch == "'") and self.sym is None):
+            if self.value in Lexer.WORDS:
+                self.sym = Lexer.WORDS[self.value]
+                break
+            self.get_next_symbol(True)
+        if self.value in Lexer.WORDS:
+            self.sym = Lexer.WORDS[self.value]
+        self.has_command = True
+
+    def get_str_in_quater(self):
+        self.getc()
+        while (self.ch != "\"") and self.sym is None and self.ch is not None:
+            self.get_next_symbol()
+        self.getc()
+        self.sym = SymbolAndCommand.STRING
+
+    def get_punctuation(self):
+        self.has_command = False
+        while self.ch in Lexer.SYMBOLS:
+            self.get_next_symbol()
+        self.sym = SymbolAndCommand.PUNCTUATION
+
+    def get_arguments(self):
+        while ((self.ch.isalpha() or self.ch.isspace()
+                or self.ch.isdigit() or self.ch == "'"
+                or self.ch == "*" or self.ch == "-" or self.ch == "+")
+                and self.sym is None):
+            self.get_next_symbol()
+        self.sym = SymbolAndCommand.ID
+
+    def get_next_symbol(self, replace_to_lower=False):
+        if replace_to_lower:
+            self.value += self.ch.lower()
+        else:
+            self.value += self.ch
+        self.getc()
 
 
 class Interpretator:
