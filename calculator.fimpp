@@ -18,8 +18,8 @@ Today I learned about The start.
 	Did you know that b is the number?
 	Did you know that op is the word?
 	I asked a "What is first number?".
-	I asked b "What is second number?".
 	I asked op "What is operation (+-*/)?".
+	I asked b "What is second number?".
 	Did you know that res is the number?
 	Now res is the calculation using a and b and op.
 	I said res.
