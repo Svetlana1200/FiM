@@ -5,35 +5,56 @@ import unittest
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              os.path.pardir))
-from fim import Lexer, SymbolAndCommand, Interpretator, IOTest
+from interpretator import Interpretator, BaseIO
+from symbolAndCommand import TOKEN_TYPES
+
+
+class IOTest(BaseIO):
+    def __init__(self):
+        self.value_print = ""
+        self.value_get = ["cakes", "123"]
+
+    def print_line(self, line):
+        self.value_print += line + "\n"
+
+    def get_line(self):
+        return self.value_get.pop()
 
 
 class GameTest(unittest.TestCase):
-    def test_appropriation(self):
+    def test_appropriation_number(self):
         text = '''Did you know that Spike was the number 12!'''
         i = Interpretator(text)
         i.execute() 
-        self.assertDictEqual(i.variables, {'Spike': [SymbolAndCommand.NUM, 12]})
+        self.assertDictEqual(i.variables, {'Spike': [TOKEN_TYPES.NUM, 12]})
 
+    def test_appropriation_variable(self):
+        text = '''Did you know that Spike was the number 12?
+                Did you know that Rarity is the number?
+                Now Rarity is Spike.'''
+        i = Interpretator(text)
+        i.execute() 
+        self.assertDictEqual(i.variables, {'Spike': [TOKEN_TYPES.NUM, 12], 'Rarity': [TOKEN_TYPES.NUM, 12]})
+    
     def test_words(self):
         text = '''Did you know that Spike likes the word cake?'''
         i = Interpretator(text)
         i.execute()    
-        self.assertDictEqual(i.variables, {'Spike': [SymbolAndCommand.STRING, "cake"]})
+        self.assertDictEqual(i.variables, {'Spike': [TOKEN_TYPES.STRING, "cake"]})
 
     def test_change_value(self):
         text = '''Did you know that Spike likes the number 12!
                   Now Spike likes 7:)'''
         i = Interpretator(text)
         i.execute()
-        self.assertDictEqual(i.variables, {'Spike': [SymbolAndCommand.NUM, 7]})
+        self.assertDictEqual(i.variables, {'Spike': [TOKEN_TYPES.NUM, 7]})
 
     def test_simple_addition(self):
         text = '''Did you know that Spike's age was the number 4!
                   I would add 2 to Spike's age!'''
         i = Interpretator(text)
         i.execute()
-        self.assertDictEqual(i.variables, {"Spike's age": [SymbolAndCommand.NUM, 6]})
+        self.assertDictEqual(i.variables, {"Spike's age": [TOKEN_TYPES.NUM, 6]})
     
     def test_addition_two_variables(self):
         text = '''Did you know that Spike's age was the number 4!
@@ -41,7 +62,7 @@ class GameTest(unittest.TestCase):
                   I would add Rarity's age to Spike's age!'''
         i = Interpretator(text)
         i.execute()
-        self.assertDictEqual(i.variables, {"Spike's age": [SymbolAndCommand.NUM, 19], "Rarity's age": [SymbolAndCommand.NUM, 15]})
+        self.assertDictEqual(i.variables, {"Spike's age": [TOKEN_TYPES.NUM, 19], "Rarity's age": [TOKEN_TYPES.NUM, 15]})
 
     def test_addition_strings(self):
         text = '''Did you know that Spike likes the word blue!
@@ -49,7 +70,7 @@ class GameTest(unittest.TestCase):
                   I would add Rarity to Spike!'''
         i = Interpretator(text)
         i.execute()
-        self.assertDictEqual(i.variables, {"Spike": [SymbolAndCommand.STRING, "blueberry"], "Rarity": [SymbolAndCommand.STRING, "berry"]})
+        self.assertDictEqual(i.variables, {"Spike": [TOKEN_TYPES.STRING, "blueberry"], "Rarity": [TOKEN_TYPES.STRING, "berry"]})
 
     def test_cyrcle(self):
         text = '''Did you know that the sum was the number 0?
@@ -60,7 +81,7 @@ class GameTest(unittest.TestCase):
                   That's what I did.'''
         i = Interpretator(text)
         i.execute()
-        self.assertDictEqual(i.variables, {"Applejack's cake": [SymbolAndCommand.NUM, 11], "the sum": [SymbolAndCommand.NUM, 3]})
+        self.assertDictEqual(i.variables, {"Applejack's cake": [TOKEN_TYPES.NUM, 11], "the sum": [TOKEN_TYPES.NUM, 3]})
 
     def test_if(self):
         text = '''Did you know that Spike's eaten cakes was the number 20?
@@ -74,7 +95,7 @@ class GameTest(unittest.TestCase):
                     That's what I would do!!!'''
         i = Interpretator(text)
         i.execute()
-        self.assertDictEqual(i.variables, {"Twilight's reaction": [SymbolAndCommand.STRING, "AAAAAAAAAA"], "Spike's eaten cakes": [SymbolAndCommand.NUM, 20]})
+        self.assertDictEqual(i.variables, {"Twilight's reaction": [TOKEN_TYPES.STRING, "AAAAAAAAAA"], "Spike's eaten cakes": [TOKEN_TYPES.NUM, 20]})
 
     def test_input(self):
         io = IOTest()
@@ -85,7 +106,7 @@ class GameTest(unittest.TestCase):
         i = Interpretator(text, io)
         i.execute()
         self.assertEqual(i.io.value_print, "")
-        self.assertDictEqual(i.variables, {'Spike': [SymbolAndCommand.NUM, 123], "Applejack": [SymbolAndCommand.STRING, "cakes"], })
+        self.assertDictEqual(i.variables, {'Spike': [TOKEN_TYPES.NUM, 123], "Applejack": [TOKEN_TYPES.STRING, "cakes"], })
 
     def test_output(self):
         io = IOTest()
@@ -107,7 +128,7 @@ class GameTest(unittest.TestCase):
         i = Interpretator(text, io)
         i.execute()
         self.assertEqual(i.io.value_print, "How many gems are left?\nWhat is you favorite cake?\n")
-        self.assertDictEqual(i.variables, {'Spike': [SymbolAndCommand.NUM, 123], 'Rarity': [SymbolAndCommand.STRING, "cakes"]})
+        self.assertDictEqual(i.variables, {'Spike': [TOKEN_TYPES.NUM, 123], 'Rarity': [TOKEN_TYPES.STRING, "cakes"]})
 
 
 if __name__ == '__main__':
