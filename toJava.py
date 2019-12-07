@@ -28,7 +28,7 @@ class ToJava:
         self.method = {}
         #for token in self.tokens:
         #    print(token.command, token.type_command)
-
+        self.java_text = []
 
     def approptiate_value(self):
         ind_start = self.ind
@@ -37,26 +37,25 @@ class ToJava:
                 variable, value = self.tokens[self.ind + 1].command.split(word)
                 if variable in self.variables:
                     if (self.variables[variable] is not None and self.variables[variable][0] == TOKEN_TYPES.NUM
-                            and value.isdigit()):
-                        print(f"{variable} = {value}")
-                        #self.approptiate_nuber(value, variable)
-                    elif value in self.variables:
-                        
-                        print(f"{variable} = {value}")
-                        #self.approptiate_value_variable(value, variable)
-                    elif value in self.method or " using " in value:
-                        has_args = False
-                        if " using " in value:
-                            has_args = True
-                        value = self.approptiate_value_method(
-                            value, variable, has_args)
+                                and value.isdigit() or value in self.variables or value in self.method or " using " in value):
+                        variable = variable.replace(' ', '_')
+                        value_1 = value.replace(' ', '_')
+                        if (self.variables[variable] is not None and self.variables[variable][0] == TOKEN_TYPES.NUM
+                                and value_1.isdigit()):
+                            self.java_text.append(f"{variable} = {value};")
+                        elif value_1 in self.variables:
+                            self.java_text.append(f"{variable} = {value};")
+                        elif value_1 in self.method or " using " in value:
+                            has_args = False
+                            if " using " in value:
+                                has_args = True
+                            self.approptiate_value_method(value, variable, has_args)
                     else:
                         self.approptiate_value_operation(value, variable)
                 else:
                     self.init_variable(variable, value)
                 break
         self.ind += 2
-        # print("did you know", self.variables)
 
     def init_variable(self, variable, value):
         for types in Interpretator.should_find_type:
@@ -67,9 +66,13 @@ class ToJava:
                 if (this_type == TOKEN_TYPES.NUM and
                         value.rstrip() != ""):
                     value = int(value)
+                variable = variable.replace(' ', '_')
                 self.variables[variable] = [
                     this_type, value]
-                print(f'var {variable} = {value}')
+                if value:
+                    self.java_text.append(f'var {variable} = {value};')
+                else:
+                    self.java_text.append(f'{types} {variable};')
                 break
 
     def approptiate_value_operation(self, value, variable):
@@ -79,62 +82,64 @@ class ToJava:
                 this_operation = Lexer.WORDS[operation[1:-1]]
                 first, second = value.split(operation)
                 break
-        if this_operation is None: ##################
-            print(value)
-        else:
-            print(f'{variable} = {first} {ToJava.OPERATION[this_operation]} {second}')
-
-    def approptiate_value_variable(self, value, variable):
-        self.variables[variable][1] = self.variables[value][1]
-
-    def approptiate_nuber(self, value, variable):
-        self.variables[variable][1] = int(value)
+        if this_operation is None:
+            self.java_text.append(value)
+        else:            
+            first = first.replace(' ', '_')
+            second = second.replace(' ', '_')
+            self.java_text.append(f'{variable} = {first} {ToJava.OPERATION[this_operation]} {second};')
 
     def approptiate_value_method(self, value, variable, has_args):
         arguments = ""
         if has_args:
             value, args = value.split(" using ")
-            args = args.split(' and ')
-            arguments = ", ".join(args)
-        print(f"{variable} = {value}({arguments[:-2]})")
-        return value
+            arguments = args.replace(' and ', ', ')
+        value = value.replace(' ', '_')
+        self.java_text.append(f"{variable} = {value}({arguments});")
 
     def start_method(self):
-        self.method_with_name_return_args = (
+        method_with_name_return_args = (
             self.tokens[self.ind + 1].command.replace('about ', ""))
         name = None
         return_type = None
         using_values = None
-        if ' with ' in self.method_with_name_return_args:
-            name, self.method_with_return_args = (
-                self.method_with_name_return_args.split(' with '))
-            if ' using ' in self.method_with_return_args:
+        if ' with ' in method_with_name_return_args:
+            name, method_with_return_args = (
+                method_with_name_return_args.split(' with '))
+            if ' using ' in method_with_return_args:
                 return_type, args = (
-                    self.method_with_return_args.split(' using '))
+                    method_with_return_args.split(' using '))
+                arguments = args.replace(' and ', ', ')
                 using_values = args.split(" and ")
+                tmp = []
                 for value in using_values:
                     self.variables[value] = None
-                arguments = ", ".join(using_values)
-                print(f"public {return_type} {name}({arguments})" + " {")
+                    tmp.append(value.replace(' ', '_'))
+                using_values = tmp
+                name = name.replace(' ', '_')
+                self.java_text.append(f"public {return_type} {name}({arguments})" + " {")
             else:
-                return_type = self.method_with_return_args
-                print(f"public {return_type} {name}()" + " {")
-        elif ' using ' in self.method_with_name_return_args:
+                return_type = method_with_return_args
+                self.java_text.append(f"public {return_type} {name}()" + " {")
+        elif ' using ' in method_with_name_return_args:
             name, args = (
-                self.method_with_name_return_args.split(' using '))
+                method_with_name_return_args.split(' using '))
+            arguments = args.replace(' and ', ', ')
             using_values = args.split(" and ")
+            tmp = []
             for value in using_values:
-                    self.variables[value] = None
-            arguments = ", ".join(using_values)
-            print(f"public void {name}({arguments})" + " {")
+                self.variables[value] = None
+                tmp.append(value.replace(' ', '_'))
+            using_values = tmp
+            name = name.replace(' ', '_')
+            self.java_text.append(f"public void {name}({arguments})" + " {")
         self.method[name] = {
             'is_main': False,
             'start_ind': self.ind + 3,
             'return_type': return_type,
             'using_values': using_values,
         }
-        self.in_method = True
-        self.ind += 2
+        self.ind += 3
 
     def start_if(self):
         condition = self.tokens[self.ind + 1].command
@@ -144,29 +149,35 @@ class ToJava:
                 second = second.replace(" then", "")
                 condition = condition.replace(word, " ")
                 break
-        operation = None
+        operation = TOKEN_TYPES.EQUALS
 
         for e in Interpretator.comparators:
             if e in condition:
                 operation = Lexer.WORDS[e[1:-1]]
-                condition = condition.replace(" then", "")
-                parts = condition.split(e)
                 break
-        if operation is None:
-            operation = TOKEN_TYPES.EQUALS
-        ToJava.print_if_condition(operation, first, second)
-        self.ind += 2
+        second_sep = first_sep = ""
 
-    @staticmethod
-    def print_if_condition(operation, first, second):
-        print (f'if ({first} {ToJava.OPERATION[operation]} {second})' + " {")
+        first = first.replace(' ', '_')
+        second = second.replace(' ', '_')
+        if not second.isdigit() and second not in self.variables:
+            second_sep = '"'
+        if not first.isdigit() and first not in self.variables:
+            first_sep = '"'
+        first = first.replace(' ', '_')
+        second = second.replace(' ', '_')
+        if self.java_text[-1] == 'else':
+            self.java_text[-1] += f' if ({first_sep}{first}{first_sep} {ToJava.OPERATION[operation]} {second_sep}{second}{second_sep})' + " {"  
+        else:
+            self.java_text.append(f'if ({first_sep}{first}{first_sep} {ToJava.OPERATION[operation]} {second_sep}{second}{second_sep})' + " {")
+        self.ind += 3
 
     def call_method(self):
         name_method_with_args = self.tokens[self.ind + 1].command
         if ' using ' in name_method_with_args:
             name_method, args = name_method_with_args.split(" using ")
-            args = args.split(', ')
-            arguments = ""
+            arguments = args.replace(' and ', ', ')
+            args = args.split(' and ')
+            name_method = name_method.replace(' ', '_')
             for i in range(len(self.method[name_method]['using_values'])):
                 if args[i] in self.variables:
                     self.variables[
@@ -175,13 +186,11 @@ class ToJava:
                 elif args[i].isdigit():
                     self.variables[
                         self.method[name_method]['using_values'][i]
-                        ] = [TOKEN_TYPES.NUM, int(args[i])]
-                arguments += args[i] + ", "
-            
-            print(f"{name_method}({arguments[:-2]})")
+                        ] = [TOKEN_TYPES.NUM, int(args[i])]            
+            self.java_text.append(f"{name_method}({arguments[:-2]});")
         else:
-            name_method = name_method_with_args
-            print(f"{name_method}()")
+            name_method_with_args = name_method_with_args.replace(' ', '_')
+            self.java_text.append(f"{name_method_with_args}();")
         self.ind += 2
 
     def start_while(self):
@@ -189,7 +198,7 @@ class ToJava:
         for word in Interpretator.should_replace:
             if word in string:
                 ind_find = string.find(word)
-                name = string[: ind_find]
+                name = string[: ind_find].replace(' ', '_')
                 value = string[ind_find + len(word):]
                 string = string.replace(word, " ")
                 break
@@ -198,12 +207,12 @@ class ToJava:
             ind_find = string.find(eq)
             if ind_find != -1:
                 find_operation = True
-                name = string[: ind_find]
+                name = string[: ind_find].replace(' ', '_')
                 value = string[ind_find + len(eq):]
-                print(f'while ({name} {ToJava.OPERATION[Lexer.WORDS[eq[1:-1]]]} {value})' + " {")
+                self.java_text.append(f'while ({name} {ToJava.OPERATION[Lexer.WORDS[eq[1:-1]]]} {value})' + " {")
                 break
         if not find_operation:
-            print(f'while {name} {TToJava.OPERATION[OKEN_TYPES.EQUAL]} {value}'" {")
+            self.java_text.append(f'while {name} {TToJava.OPERATION[OKEN_TYPES.EQUAL]} {value}'" {")
         self.ind += 2
 
     def make_arithmetic(self, should_replace, operation):
@@ -214,7 +223,9 @@ class ToJava:
                 first, second = res_replace.split(".")
                 if operation == TOKEN_TYPES.DIVIDE:
                     first, second = second, first
-        print(f'{second} {ToJava.OPERATION[operation]}= {first}')
+        first = first.replace(' ', '_')
+        second = second.replace(' ', '_')
+        self.java_text.append(f'{second} {ToJava.OPERATION[operation]}= {first};')
         self.ind += 2
 
     def print_line(self, command, type_command):
@@ -228,8 +239,7 @@ class ToJava:
                 text += f'{command} + '
             self.ind += 1
             command, type_command = self.tokens[self.ind].command, self.tokens[self.ind].type_command 
-        print(f'System.out.println({text[:-3]})')
-
+        self.java_text.append(f'System.out.println({text[:-3]});')
 
     def translate(self):
         has_scanner = False
@@ -237,17 +247,17 @@ class ToJava:
             command, type_command = self.tokens[self.ind].command, self.tokens[self.ind].type_command
             if type_command == TOKEN_TYPES.STARTCLASS:
                 self.ind += 3
-                name_class = self.tokens[self.ind].command
-                print(f"public class {name_class} " + "{")
+                name_class = self.tokens[self.ind].command.replace(' ', '_')
+                self.java_text.append(f"public class {name_class} " + "{")
                 self.ind += 2
             elif type_command == TOKEN_TYPES.ENDCLASS:
-                print("}")
+                self.java_text.append("}")
                 self.ind += 3
             elif type_command == TOKEN_TYPES.MAINMETHOD:
-                print("public void main() {")
+                self.java_text.append("public void main() {")
                 self.ind += 3
             elif type_command == TOKEN_TYPES.ENDMETHOD:
-                print("}")
+                self.java_text.append("}")
                 self.ind += 3
             elif type_command == TOKEN_TYPES.PUNCTUATION:
                 #print(";")
@@ -259,14 +269,17 @@ class ToJava:
             elif type_command == TOKEN_TYPES.IF:
                 self.start_if()
             elif type_command == TOKEN_TYPES.ELSE:
-                print("}")
-                print("else")
-                self.ind += 1
+                self.java_text.append("}")
+                self.java_text.append("else")
+                self.ind += 2
+                if not self.tokens[self.ind].command.startswith('if'):
+                    self.java_text[-1] += " {"
+
             elif type_command == TOKEN_TYPES.ENDIF:
-                print("}")
+                self.java_text.append("}")
                 self.ind += 1
             elif type_command == TOKEN_TYPES.RETURN:
-                print(f"return {self.tokens[self.ind + 1].command}")
+                self.java_text.append(f"return {self.tokens[self.ind + 1].command.replace(' ', '_')};")
                 self.ind += 2
             elif type_command == TOKEN_TYPES.CALLMETHOD:
                 self.call_method()
@@ -274,7 +287,7 @@ class ToJava:
             elif type_command == TOKEN_TYPES.WHILE:
                 self.start_while()
             elif type_command == TOKEN_TYPES.ENDWHILE:
-                print("}")
+                self.java_text.append("}")
                 self.ind += 1
             
             elif (type_command == TOKEN_TYPES.PLUS
@@ -289,31 +302,33 @@ class ToJava:
 
             elif type_command == TOKEN_TYPES.READ:
                 if not has_scanner:
-                    print(f'Scanner in = new Scanner(System.in)')
+                    self.java_text.append(f'Scanner in = new Scanner(System.in);')
                     has_scanner = True
-                variable = self.tokens[self.ind + 1].command
+                variable = self.tokens[self.ind + 1].command.replace(' ', '_')
                 if self.variables[variable][0] == TOKEN_TYPES.STRING:
-                    print(f'String {variable} = in.nextInt()')
+                    self.java_text.append(f'{variable} = in.next();')
                 elif self.variables[variable][0] == TOKEN_TYPES.NUM:
-                    print(f'Int {variable} = in.nextInt()')
+                    self.java_text.append(f'{variable} = in.nextInt();')
                 self.ind += 2 
             elif type_command == TOKEN_TYPES.ASK:
                 if self.tokens[self.ind + 2].type_command == TOKEN_TYPES.STRING:
-                    print(f'System.out.println("{self.tokens[self.ind + 2].command}")')
+                    self.java_text.append(f'System.out.println("{self.tokens[self.ind + 2].command}");')
                 else:
-                    print(f'System.out.println({self.tokens[self.ind + 2].command})')
+                    self.java_text.append(f'System.out.println({self.tokens[self.ind + 2].command});')
                 if not has_scanner:
-                    print(f'Scanner in = new Scanner(System.in)')
+                    self.java_text.append(f'Scanner in = new Scanner(System.in);')
                     has_scanner = True
-                variable = self.tokens[self.ind + 1].command
+                variable = self.tokens[self.ind + 1].command.replace(' ', '_')
                 if self.variables[variable][0] == TOKEN_TYPES.STRING:
-                    print(f'String {variable} = in.nextInt()')
+                    self.java_text.append(f'{variable} = in.next();')
                 elif self.variables[variable][0] == TOKEN_TYPES.NUM:
-                    print(f'Int {variable} = in.nextInt()')
+                    self.java_text.append(f'{variable} = in.nextInt();')
                 self.ind += 3
             else:
                 print("Wrong token: " + command)                
-                sys.exit(2)\
-            
-
-
+                sys.exit(2)
+    
+    def correct_text(self):
+        for string in self.java_text:
+            string = string.replace('the number', 'int').replace('the word', 'String')
+            print(string)
