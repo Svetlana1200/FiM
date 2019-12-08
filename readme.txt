@@ -11,5 +11,7 @@ FiM++
 	./fim.py add_from_1_to_100.fimpp
 	typo add_from_1_to_100.fimpp | fim.py (windows)
 	cat add_from_1_to_100.fimpp | fim.py (linux)
+	./fim.py add_from_1_to_100.fimpp --to-java adding.java
 Дополнительно:
 	Ввод программы на языке fim++ осуществляется через параметры запуска или через stdin.
+	--to-java [Имя файла.java] для перевода программы на fim++ в программу на java, результат будет записан в указанный файл

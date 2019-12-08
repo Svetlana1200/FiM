@@ -12,7 +12,8 @@ def main():
     namespace = parser.parse_args(sys.argv[1:])
     try:
         if namespace.file_name:
-            with open(namespace.file_name, 'r') as f:
+            path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "programs",  namespace.file_name)
+            with open(path, 'r') as f:
                 text = f.read().rstrip()
         else:
             text = sys.stdin.read().rstrip()
@@ -28,7 +29,7 @@ def main():
         j.translate()
         java_text = j.correct_text().replace('public class Program', f'public class {namespace.to_java[:-5]}')
         try:
-            with open(namespace.file_name, 'w') as f:
+            with open(namespace.to_java, 'w') as f:
                 f.write(java_text)
         except (Exception, PermissionError):
             print("Не удается прочитать указанный файл.")
@@ -37,16 +38,9 @@ def main():
         i = Interpretator(text)
         i.execute()
 
-
-
-    
     #print(i.variables)
     #print(i.method)
     #print(i.classes)
-    
-    #j = ToJava(text)
-    #j.translate()
-    #j.correct_text()'''
 
 
 if __name__ == "__main__":

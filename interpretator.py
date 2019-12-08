@@ -28,32 +28,32 @@ class IO(BaseIO):
 
 
 class Interpretator:
-    should_ignore = [
+    SHOULD_IGNORE = [
             " was ", " is ", " has ",
             " had ", " like ", " likes ", " liked "
             ]
-    should_replace = [
+    SHOULD_REPLACE = [
             " was ", " is ", " has ",
             " had ", " like ", " likes ", " liked "]
-    comparators = [
+    COMPARATORS = [
             ' no less than ', ' no more than ', ' no greater than ',
             ' not more ', ' not greater ', ' not less ',
             ' more than ', ' greater than ', ' less than ', ' not ',
             ]
-    operations = [
+    OPERATIONS = [
             " plus ", " added to ", ' minus ',
             " without ", ' times ', ' multiplied with ',
             ' divided by ']
-    dict_replace = {
+    DICT_REPLACE = {
         TOKEN_TYPES.PLUS: [" to ", " and "],
         TOKEN_TYPES.MINUS: [" from ", " and "],
         TOKEN_TYPES.MULTIPLY: [" and "],
-        TOKEN_TYPES.DIVIDE: [" by ", " and "],
+        TOKEN_TYPES.DIVIDE: [" by ", " and "]
     }
 
-    should_find_type = ["the number", "the word"]
+    SHOULD_FIND_TYPE = ["the number", "the word"]
 
-    check_if_condition_dict = {
+    CHECK_IF_CONDITION_DICT = {
         TOKEN_TYPES.MORE: lambda x, y: x > y,
         TOKEN_TYPES.LESS: lambda x, y: x < y,
         TOKEN_TYPES.EQLESS: lambda x, y: x <= y,
@@ -67,8 +67,6 @@ class Interpretator:
             print("ПУстой текст")
             sys.exit(3)
         self.tokens = list(Lexer(text))
-        #for token in self.tokens:
-            #print(token.command, token.type_command)
 
         self.in_method = False
         self.in_what_method = []
@@ -76,14 +74,37 @@ class Interpretator:
         self.method = {}
         self.classes = {}
         self.variables = {}
-        self.circle = []  # имя переменной, больше/меньше, величина
+        self.circle = []
         self.circle_ind = None
         self.io = io
         self.ind = 0
+                
+        self.dict_function = {
+            TOKEN_TYPES.APPROPRIATION: self.approptiate_value,
+            TOKEN_TYPES.PUNCTUATION: self.punctuation,
+            TOKEN_TYPES.READ: self.read_line,
+            TOKEN_TYPES.ASK: self.ask_line,
+
+            TOKEN_TYPES.WHILE: self.start_while,
+            TOKEN_TYPES.ENDWHILE: self.check_ending_while,
+
+            TOKEN_TYPES.STARTMETHOD: self.start_method,
+            TOKEN_TYPES.MAINMETHOD: self.keep_info_main_method,
+            TOKEN_TYPES.ENDMETHOD: self.end_method,
+            TOKEN_TYPES.CALLMETHOD: self.call_method,
+            TOKEN_TYPES.RETURN: self.return_value_from_method,
+
+            TOKEN_TYPES.STARTCLASS: self.start_class,
+            TOKEN_TYPES.ENDCLASS: self.end_class,
+
+            TOKEN_TYPES.IF: self.start_if,
+            TOKEN_TYPES.ENDIF: self.end_if,
+            TOKEN_TYPES.ELSE: self.else_if
+        }
 
     def approptiate_value(self):
         ind_start = self.ind
-        for word in Interpretator.should_ignore:
+        for word in Interpretator.SHOULD_IGNORE:
             if not (word in self.tokens[self.ind+1].command):
                 continue
             variable, value = self.tokens[self.ind + 1].command.split(word)
@@ -108,7 +129,7 @@ class Interpretator:
             self.ind += 2
 
     def init_variable(self, variable, value):
-        for types in Interpretator.should_find_type:
+        for types in Interpretator.SHOULD_FIND_TYPE:
             if types in value:
                 this_type = Lexer.WORDS[types]
                 value = value[
@@ -122,7 +143,7 @@ class Interpretator:
 
     def approptiate_value_operation(self, value, variable):
         this_operation = None
-        for operation in Interpretator.operations:
+        for operation in Interpretator.OPERATIONS:
             if operation not in value:
                 continue
             this_operation = Lexer.WORDS[operation[1:-1]]
@@ -174,9 +195,8 @@ class Interpretator:
             command, type_command = self.tokens[self.ind].command, self.tokens[self.ind].type_command 
         self.io.print_line(text)
 
-    def read_line(self, variable=None):
-        if variable is None:
-            variable = self.tokens[self.ind + 1].command
+    def read_line(self):
+        variable = self.tokens[self.ind + 1].command
         value = self.io.get_line()
         if self.variables[variable][0] == TOKEN_TYPES.STRING:
             self.variables[variable][1] = value
@@ -186,7 +206,7 @@ class Interpretator:
 
     def ask_line(self):
         self.io.print_line(self.tokens[self.ind + 2].command)
-        self.read_line(self.tokens[self.ind + 1].command)
+        self.read_line()
         self.ind += 1
 
     def make_arithmetic(self, should_replace, operation):
@@ -211,7 +231,7 @@ class Interpretator:
 
     def start_while(self):
         string = self.tokens[self.ind + 1].command
-        for word in Interpretator.should_replace:
+        for word in Interpretator.SHOULD_REPLACE:
             if word not in string:
                 continue
             ind_find = string.find(word)
@@ -219,7 +239,7 @@ class Interpretator:
             value = string[ind_find + len(word):]
             string = string.replace(word, " ")
         find_operation = False
-        for eq in Interpretator.comparators:
+        for eq in Interpretator.COMPARATORS:
             ind_find = string.find(eq) 
             if ind_find == -1:
                 continue
@@ -243,7 +263,7 @@ class Interpretator:
         self.ind += 2
 
     def check_ending_while(self):
-        if not Interpretator.check_if_condition_dict[
+        if not Interpretator.CHECK_IF_CONDITION_DICT[
             self.circle[1]](
                 self.variables[self.circle[0]][1], self.circle[2]):       
             self.ind += 1
@@ -252,7 +272,7 @@ class Interpretator:
 
     def start_if(self):
         condition = self.tokens[self.ind + 1].command
-        for word in Interpretator.should_replace:
+        for word in Interpretator.SHOULD_REPLACE:
             if word not in condition:
                 continue
             first, second = condition.split(word)
@@ -262,7 +282,7 @@ class Interpretator:
             condition = condition.replace(word, " ")
         operation = None
 
-        for e in Interpretator.comparators:
+        for e in Interpretator.COMPARATORS:
             if e not in condition:
                 continue
             operation = Lexer.WORDS[e[1:-1]]
@@ -272,7 +292,7 @@ class Interpretator:
             second, _was_oinvert = self.try_conver_to_int(second, parts[1])
         if operation is None:
             operation = TOKEN_TYPES.EQUALS
-        if Interpretator.check_if_condition_dict[operation](first, second):
+        if Interpretator.CHECK_IF_CONDITION_DICT[operation](first, second):
             self.ind += 2
             self.is_exectute_if = True
         else:
@@ -306,9 +326,9 @@ class Interpretator:
         if using_values is None:
             using_values_with_types = None
         else:
-            using_values_with_types = [] ################
+            using_values_with_types = []
             for value in using_values:
-                for types in Interpretator.should_find_type:
+                for types in Interpretator.SHOULD_FIND_TYPE:
                     if types in value:
                         using_values_with_types.append([value[len(types) + 1:], types])
 
@@ -402,6 +422,20 @@ class Interpretator:
                 return value1, True
         return value1, False
 
+    def end_if(self):
+        self.ind += 1
+        self.is_exectute_if = False
+    
+    def else_if(self):
+        if self.is_exectute_if:
+            while self.tokens[self.ind].type_command != TOKEN_TYPES.ENDIF:
+                self.ind += 1
+        self.ind += 1
+        self.is_exectute_if = False
+
+    def punctuation(self):
+        self.ind += 1
+    
     def execute(self):
         while self.ind < len(self.tokens):
             command, type_command = self.tokens[self.ind].command, self.tokens[self.ind].type_command
@@ -409,58 +443,17 @@ class Interpretator:
                     type_command != TOKEN_TYPES.ENDMETHOD):
                 self.ind += 1
                 continue
-
-            elif type_command == TOKEN_TYPES.APPROPRIATION:
-                self.approptiate_value()
-            elif type_command == TOKEN_TYPES.PUNCTUATION:
-                self.ind += 1
-
-            elif type_command == TOKEN_TYPES.PRINT:
+            elif type_command == TOKEN_TYPES.PRINT: 
                 self.print_line(command, type_command)
-            elif type_command == TOKEN_TYPES.READ:
-                self.read_line()
-            elif type_command == TOKEN_TYPES.ASK:
-                self.ask_line()
-
             elif (type_command == TOKEN_TYPES.PLUS
                     or type_command == TOKEN_TYPES.MINUS
                     or type_command == TOKEN_TYPES.MULTIPLY
                     or type_command == TOKEN_TYPES.DIVIDE):
-                should_replace = Interpretator.dict_replace[type_command]
-                self.make_arithmetic(should_replace, type_command)
-
-            elif type_command == TOKEN_TYPES.WHILE:
-                self.start_while()
-            elif type_command == TOKEN_TYPES.ENDWHILE:
-                self.check_ending_while()
-
-            elif type_command == TOKEN_TYPES.STARTMETHOD:
-                self.start_method()
-            elif type_command == TOKEN_TYPES.MAINMETHOD:
-                self.keep_info_main_method()
-            elif type_command == TOKEN_TYPES.ENDMETHOD:
-                self.end_method()
-            elif type_command == TOKEN_TYPES.CALLMETHOD:
-                self.call_method()
-            elif type_command == TOKEN_TYPES.RETURN:
-                self.return_value_from_method()
-
-            elif type_command == TOKEN_TYPES.STARTCLASS:
-                self.start_class()
-            elif type_command == TOKEN_TYPES.ENDCLASS:
-                self.end_class()
-
-            elif type_command == TOKEN_TYPES.IF:
-                self.start_if()
-            elif type_command == TOKEN_TYPES.ENDIF:
-                self.ind += 1
-                self.is_exectute_if = False
-            elif type_command == TOKEN_TYPES.ELSE:
-                if self.is_exectute_if:
-                    while self.tokens[self.ind].type_command != TOKEN_TYPES.ENDIF:
-                        self.ind += 1
-                self.ind += 1
-                self.is_exectute_if = False
+                self.make_arithmetic(
+                    Interpretator.DICT_REPLACE[type_command], type_command)
             else:
-                print("Wrong token: " + self.tokens[self.ind].command)                
-                sys.exit(2)
+                try:
+                    self.dict_function.get(type_command)()
+                except KeyError:
+                    print("Wrong token: " + self.tokens[self.ind].command)                
+                    sys.exit(2)
