@@ -58,8 +58,8 @@ class Interpretator:
             print("ПУстой текст")
             sys.exit(3)
         self.tokens = list(Lexer(text))
-        for token in self.tokens:
-            print(token.command, token.type_command)
+        #for token in self.tokens:
+            #print(token.command, token.type_command)
 
         self.in_method = False
         self.in_what_method = []
@@ -144,7 +144,7 @@ class Interpretator:
             args = args.split(' and ')
             for i in range(len(self.method[value]['using_values'])):
                 self.variables[
-                    self.method[value]['using_values'][i]
+                    self.method[value]['using_values'][i][0] #################
                     ] = self.variables[args[i]]
         self.method[value]['result'] = variable
         self.method[value]['save_ind'] = self.ind + 2
@@ -304,11 +304,20 @@ class Interpretator:
             name, args = (
                 self.method_with_name_return_args.split(' using '))
             using_values = args.split(" and ")
+        if using_values is None:
+            using_values_with_types = None
+        else:
+            using_values_with_types = [] ################
+            for value in using_values:
+                for types in Interpretator.should_find_type:
+                    if types in value:
+                        using_values_with_types.append([value[len(types) + 1:], types])
+
         self.method[name] = {
             'is_main': False,
             'start_ind': self.ind + 3,
             'return_type': return_type,
-            'using_values': using_values,
+            'using_values': using_values_with_types,
         }
         self.in_method = True
         self.ind += 2
@@ -341,12 +350,12 @@ class Interpretator:
             for i in range(len(self.method[name_method]['using_values'])):
                 if args[i] in self.variables:
                     self.variables[
-                        self.method[name_method]['using_values'][i]
+                        self.method[name_method]['using_values'][i][0]
                         ] = self.variables[args[i]]
                 elif args[i].isdigit():
                     self.variables[
-                        self.method[name_method]['using_values'][i]
-                        ] = [TOKEN_TYPES.NUM, int(args[i])]
+                        self.method[name_method]['using_values'][i][0]
+                        ] = [TOKEN_TYPES.NUM, int(args[i])]##############3
         else:
             name_method = name_method_with_args
         self.method[name_method]['save_ind'] = self.ind + 2
