@@ -97,7 +97,6 @@ class ToJava:
     def start_method(self):
         method_with_name_return_args = (
             self.tokens[self.ind + 1].command.replace('about ', ""))
-        name = None
         return_type = None
         arguments = ""
         using_values = None
@@ -110,14 +109,13 @@ class ToJava:
                 using_values = args.split(" and ")
             else:
                 return_type = method_with_return_args   
-            name = name.replace(' ', '_')
         elif ' using ' in method_with_name_return_args:
             name, args = (
                 method_with_name_return_args.split(' using '))
             using_values = args.split(" and ")
-            tmp = []
-            name = name.replace(' ', '_')
-        
+        else:
+            name = method_with_name_return_args
+        name = name.replace(' ', '_')
         if using_values is None:
             using_values_with_types = None
         else:
@@ -129,25 +127,17 @@ class ToJava:
                         val = value[ind:].replace(' ', '_')
                         using_values_with_types.append([val, types])
                         arguments += types + " " + val + ", "
-                        self.variables[value[ind:].replace(' ', '_')] = None
+                        self.variables[val] = None
                         break
             arguments = arguments[:-2]
-
-        self.method[name] = {
-            'is_main': False,
-            'start_ind': self.ind + 3,
-            'return_type': return_type,
-            'using_values': using_values_with_types,
-        }
+        self.method[name] = None
         if return_type is None:
             return_type = 'void'
-        
         self.java_text.append(f"public static {return_type} {name}({arguments})" + " {")
         self.ind += 3
 
     def start_if(self):
         condition = self.tokens[self.ind + 1].command
-        
         for word in Interpretator.should_replace:
             if word in condition:
                 first, second = condition.split(word)
@@ -162,7 +152,6 @@ class ToJava:
                 operation = Lexer.WORDS[e[1:-1]]
                 break
         second_sep = first_sep = ""
-
         first = first.replace(' ', '_')
         second = second.replace(' ', '_')
         equals = f' {ToJava.OPERATION[operation]} {second}'
@@ -180,24 +169,14 @@ class ToJava:
 
     def call_method(self):
         name_method_with_args = self.tokens[self.ind + 1].command
+        arguments = ""
         if ' using ' in name_method_with_args:
             name_method, args = name_method_with_args.split(" using ")
             arguments = args.replace(' and ', ', ')
-            args = args.split(' and ')
-            name_method = name_method.replace(' ', '_')
-            for i in range(len(self.method[name_method]['using_values'])):
-                if args[i] in self.variables:
-                    self.variables[
-                        self.method[name_method]['using_values'][i][0]
-                        ] = self.variables[args[i]]
-                elif args[i].isdigit():
-                    self.variables[
-                        self.method[name_method]['using_values'][i][0]
-                        ] = [TOKEN_TYPES.NUM, int(args[i])]            
-            self.java_text.append(f"{name_method}({arguments});")
         else:
-            name_method_with_args = name_method_with_args.replace(' ', '_')
-            self.java_text.append(f"{name_method_with_args}();")
+            name_method = name_method_with_args
+        name_method = name_method.replace(' ', '_')
+        self.java_text.append(f"{name_method}({arguments});")
         self.ind += 2
 
     def start_while(self):
@@ -208,26 +187,23 @@ class ToJava:
                 name = string[: ind_find].replace(' ', '_')
                 value = string[ind_find + len(word):]
                 string = string.replace(word, " ")
-                break
-        find_operation = False
+                break     
+        operation = ToJava.OPERATION[TOKEN_TYPES.EQUALS]
         for eq in Interpretator.comparators:
             ind_find = string.find(eq)
             if ind_find != -1:
-                find_operation = True
                 name = string[: ind_find].replace(' ', '_')
                 value = string[ind_find + len(eq):]
-                self.java_text.append(f'while ({name} {ToJava.OPERATION[Lexer.WORDS[eq[1:-1]]]} {value})' + " {")
+                operation = ToJava.OPERATION[Lexer.WORDS[eq[1:-1]]]
                 break
-        if not find_operation:
-            self.java_text.append(f'while {name} {TToJava.OPERATION[OKEN_TYPES.EQUAL]} {value}'" {")
+        self.java_text.append(f'while ({name} {operation} {value})'" {")
         self.ind += 2
 
     def make_arithmetic(self, should_replace, operation):
         values = self.tokens[self.ind + 1].command
         for word in should_replace:
             if word in values:
-                res_replace = values.replace(word, ".")
-                first, second = res_replace.split(".")
+                first, second = values.split(word)
                 if operation == TOKEN_TYPES.DIVIDE:
                     first, second = second, first
         first = first.replace(' ', '_')
@@ -338,6 +314,8 @@ class ToJava:
                 sys.exit(2)
     
     def correct_text(self):
+        self.right_text = []
         for string in self.java_text:
             string = string.replace('the number', 'int').replace('the word', 'String').replace("'", "_")
-            print(string)
+            self.right_text.append(string)
+        return "\n".join(self.right_text)

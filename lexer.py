@@ -1,4 +1,6 @@
 from symbolAndCommand import TOKEN_TYPES
+import sys
+
 
 class Token:
     def __init__(self, command, type_command):
@@ -83,6 +85,7 @@ class Lexer:
         self.has_command = False
         self.ch = None
         self.getc()
+        self.was_ok = ""
 
     def __iter__(self):
             return self
@@ -104,6 +107,7 @@ class Lexer:
     def next_tok(self):
         self.value = ""
         self.sym = None
+        ind = self.index
         while self.ch.isspace():
             self.getc()
         if self.ch.isalpha() and not self.has_command:
@@ -114,6 +118,12 @@ class Lexer:
             self.get_str_in_quater()
         elif self.ch in Lexer.SYMBOLS:
             self.get_punctuation()
+        if ind == self.index:
+            end_ind = self.text[ind:].find('\n') + ind
+            start_ind = self.text[:ind].rfind('\n')
+            print("Wrong string: ", self.text[start_ind:end_ind])
+            sys.exit(1)
+            
         return Token(self.value.rstrip(), self.sym)
 
     def get_command(self):

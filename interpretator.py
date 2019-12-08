@@ -53,6 +53,15 @@ class Interpretator:
 
     should_find_type = ["the number", "the word"]
 
+    check_if_condition_dict = {
+        TOKEN_TYPES.MORE: lambda x, y: x > y,
+        TOKEN_TYPES.LESS: lambda x, y: x < y,
+        TOKEN_TYPES.EQLESS: lambda x, y: x <= y,
+        TOKEN_TYPES.EQMORE: lambda x, y: x >= y,
+        TOKEN_TYPES.EQUALS: lambda x, y: x == y,
+        TOKEN_TYPES.NOTEQ: lambda x, y: x != y
+    }
+
     def __init__(self, text, io=IO()):
         if text == "":
             print("ПУстой текст")
@@ -75,29 +84,28 @@ class Interpretator:
     def approptiate_value(self):
         ind_start = self.ind
         for word in Interpretator.should_ignore:
-            if word in self.tokens[self.ind+1].command:
-                variable, value = self.tokens[self.ind + 1].command.split(word)
-                if variable in self.variables:
-                    if (self.variables[variable][0] == TOKEN_TYPES.NUM
-                            and value.isdigit()):
-                        self.approptiate_nuber(value, variable)
-                    elif value in self.variables:
-                        self.approptiate_value_variable(value, variable)
-                    elif value in self.method or " using " in value:
-                        has_args = False
-                        if " using " in value:
-                            has_args = True
-                        value = self.approptiate_value_method(
-                            value, variable, has_args)
-                        self.ind = self.method[value]['start_ind']
-                    else:
-                        self.approptiate_value_operation(value, variable)
+            if not (word in self.tokens[self.ind+1].command):
+                continue
+            variable, value = self.tokens[self.ind + 1].command.split(word)
+            if variable in self.variables:
+                if (self.variables[variable][0] == TOKEN_TYPES.NUM
+                        and value.isdigit()):
+                    self.approptiate_nuber(value, variable)
+                elif value in self.variables:
+                    self.approptiate_value_variable(value, variable)
+                elif value in self.method or " using " in value:
+                    has_args = False
+                    if " using " in value:
+                        has_args = True
+                    value = self.approptiate_value_method(
+                        value, variable, has_args)
+                    self.ind = self.method[value]['start_ind']
                 else:
-                    self.init_variable(variable, value)
-                break
+                    self.approptiate_value_operation(value, variable)
+            else:
+                self.init_variable(variable, value)
         if ind_start == self.ind:
             self.ind += 2
-        # print("did you know", self.variables)
 
     def init_variable(self, variable, value):
         for types in Interpretator.should_find_type:
@@ -115,12 +123,12 @@ class Interpretator:
     def approptiate_value_operation(self, value, variable):
         this_operation = None
         for operation in Interpretator.operations:
-            if operation in value:
-                this_operation = Lexer.WORDS[operation[1:-1]]
-                first, second = value.split(operation)
-                first, _was_conver = self.try_conver_to_int(first)
-                second, _was_conver = self.try_conver_to_int(second)
-                break
+            if operation not in value:
+                continue
+            this_operation = Lexer.WORDS[operation[1:-1]]
+            first, second = value.split(operation)
+            first, _was_conver = self.try_conver_to_int(first)
+            second, _was_conver = self.try_conver_to_int(second)
         if this_operation is None:
             self.variables[variable][1] = value
         elif this_operation == TOKEN_TYPES.MINUS:
@@ -144,7 +152,7 @@ class Interpretator:
             args = args.split(' and ')
             for i in range(len(self.method[value]['using_values'])):
                 self.variables[
-                    self.method[value]['using_values'][i][0] #################
+                    self.method[value]['using_values'][i][0]
                     ] = self.variables[args[i]]
         self.method[value]['result'] = variable
         self.method[value]['save_ind'] = self.ind + 2
@@ -184,12 +192,13 @@ class Interpretator:
     def make_arithmetic(self, should_replace, operation):
         values = self.tokens[self.ind + 1].command
         for word in should_replace:
-            if word in values:
-                res_replace = values.replace(word, ".")
-                first, second = res_replace.split(".")
-                if operation == TOKEN_TYPES.DIVIDE:
-                    first, second = second, first
-                first_value, _was_conver = self.try_conver_to_int(first, first)
+            if word not in values:
+                continue
+            res_replace = values.replace(word, ".")
+            first, second = res_replace.split(".")
+            if operation == TOKEN_TYPES.DIVIDE:
+                first, second = second, first
+            first_value, _was_conver = self.try_conver_to_int(first, first)
         if operation == TOKEN_TYPES.PLUS:
             self.variables[second][1] += first_value
         elif operation == TOKEN_TYPES.MINUS:
@@ -203,26 +212,26 @@ class Interpretator:
     def start_while(self):
         string = self.tokens[self.ind + 1].command
         for word in Interpretator.should_replace:
-            if word in string:
-                ind_find = string.find(word)
-                name = string[: ind_find]
-                value = string[ind_find + len(word):]
-                string = string.replace(word, " ")
-                break
+            if word not in string:
+                continue
+            ind_find = string.find(word)
+            name = string[: ind_find]
+            value = string[ind_find + len(word):]
+            string = string.replace(word, " ")
         find_operation = False
         for eq in Interpretator.comparators:
-            ind_find = string.find(eq)
-            if ind_find != -1:
-                find_operation = True
-                name = string[: ind_find]
-                self.circle.append(name)
-                self.circle.append(Lexer.WORDS[eq[1:-1]])
-                value = string[ind_find + len(eq):]
-                if value.isdigit():
-                    self.circle.append(int(value))
-                else:
-                    self.circle.append(self.variables[value][1])
-                break
+            ind_find = string.find(eq) 
+            if ind_find == -1:
+                continue
+            find_operation = True
+            name = string[: ind_find]
+            self.circle.append(name)
+            self.circle.append(Lexer.WORDS[eq[1:-1]])
+            value = string[ind_find + len(eq):]
+            if value.isdigit():
+                self.circle.append(int(value))
+            else:
+                self.circle.append(self.variables[value][1])
         if not find_operation:
             self.circle.append(name)
             self.circle.append(TOKEN_TYPES.EQUALS)
@@ -234,46 +243,36 @@ class Interpretator:
         self.ind += 2
 
     def check_ending_while(self):
-        if (self.circle[1] == TOKEN_TYPES.MORE and
-                self.variables[self.circle[0]][1] <= self.circle[2] or
-                self.circle[1] == TOKEN_TYPES.LESS and
-                self.variables[self.circle[0]][1] >= self.circle[2] or
-                self.circle[1] == TOKEN_TYPES.EQLESS and
-                self.variables[self.circle[0]][1] > self.circle[2] or
-                self.circle[1] == TOKEN_TYPES.EQMORE and
-                self.variables[self.circle[0]][1] < self.circle[2] or
-                self.circle[1] == TOKEN_TYPES.NOTEQ and
-                self.variables[self.circle[0]][1] == self.circle[2] or
-                self.circle[1] == TOKEN_TYPES.EQUALS and
-                self.variables[self.circle[0]][1] != self.circle[2]):
+        if not Interpretator.check_if_condition_dict[
+            self.circle[1]](
+                self.variables[self.circle[0]][1], self.circle[2]):       
             self.ind += 1
-            # print("finish while")
         else:
             self.ind = self.circle_ind
 
     def start_if(self):
         condition = self.tokens[self.ind + 1].command
         for word in Interpretator.should_replace:
-            if word in condition:
-                first, second = condition.split(word)
-                second = second.replace(" then", "")
-                first, _was_convert = self.try_conver_to_int(first)
-                second, _was_convert = self.try_conver_to_int(second)
-                condition = condition.replace(word, " ")
-                break
+            if word not in condition:
+                continue
+            first, second = condition.split(word)
+            second = second.replace(" then", "")
+            first, _was_convert = self.try_conver_to_int(first)
+            second, _was_convert = self.try_conver_to_int(second)
+            condition = condition.replace(word, " ")
         operation = None
 
         for e in Interpretator.comparators:
-            if e in condition:
-                operation = Lexer.WORDS[e[1:-1]]
-                condition = condition.replace(" then", "")
-                parts = condition.split(e)
-                first, _was_convert = self.try_conver_to_int(first, parts[0])
-                second, _was_oinvert = self.try_conver_to_int(second, parts[1])
-                break
+            if e not in condition:
+                continue
+            operation = Lexer.WORDS[e[1:-1]]
+            condition = condition.replace(" then", "")
+            parts = condition.split(e)
+            first, _was_convert = self.try_conver_to_int(first, parts[0])
+            second, _was_oinvert = self.try_conver_to_int(second, parts[1])
         if operation is None:
             operation = TOKEN_TYPES.EQUALS
-        if Interpretator.check_if_condition(operation, first, second):
+        if Interpretator.check_if_condition_dict[operation](first, second):
             self.ind += 2
             self.is_exectute_if = True
         else:
@@ -390,21 +389,6 @@ class Interpretator:
             if not self.try_conver_to_int(value)[1]:
                 self.classes[name_class].append(self.ind)
         self.ind += 2
-
-    @staticmethod
-    def check_if_condition(operation, first, second):
-        return (operation == TOKEN_TYPES.MORE and
-                first > second or
-                operation == TOKEN_TYPES.LESS and
-                first < second or
-                operation == TOKEN_TYPES.EQLESS and
-                first <= second or
-                operation == TOKEN_TYPES.EQMORE and
-                first >= second or
-                operation == TOKEN_TYPES.EQUALS and
-                first == second or
-                operation == TOKEN_TYPES.NOTEQ and
-                first != second)
 
     def try_conver_to_int(self, value1, value2=None):
         if value2 is None:
