@@ -86,6 +86,7 @@ class Lexer:
         self.ch = None
         self.getc()
         self.was_ok = ""
+        self.number_curent_str = 1
 
     def __iter__(self):
             return self
@@ -99,6 +100,8 @@ class Lexer:
     def getc(self):
         try:
             self.ch = self.text[self.index]
+            if self.ch == "\n":
+                self.number_curent_str += 1
         except Exception:
             self.ch = None
         finally:
@@ -121,9 +124,12 @@ class Lexer:
         if ind == self.index:
             end_ind = self.text[ind:].find('\n') + ind
             start_ind = self.text[:ind].rfind('\n')
-            print("Wrong string: ", self.text[start_ind:end_ind])
+            if start_ind == -1:
+                start_ind = 0
+            if end_ind == -1:
+                end_ind = len(self.text) - 1
+            print(f"Неправильная строка {self.number_curent_str}: {self.text[start_ind:end_ind]}")
             sys.exit(1)
-            
         return Token(self.value.rstrip(), self.sym)
 
     def get_command(self):

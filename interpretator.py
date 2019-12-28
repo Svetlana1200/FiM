@@ -2,6 +2,7 @@ from lexer import Lexer
 from symbolAndCommand import TOKEN_TYPES
 import math
 import sys
+from const import Const
 
 
 class BaseIO:
@@ -28,44 +29,9 @@ class IO(BaseIO):
 
 
 class Interpretator:
-    SHOULD_IGNORE = [
-            " was ", " is ", " has ",
-            " had ", " like ", " likes ", " liked "
-            ]
-    SHOULD_REPLACE = [
-            " was ", " is ", " has ",
-            " had ", " like ", " likes ", " liked "]
-    COMPARATORS = [
-            ' no less than ', ' no more than ', ' no greater than ',
-            ' not more ', ' not greater ', ' not less ',
-            ' more than ', ' greater than ', ' less than ', ' not ',
-            ]
-    OPERATIONS = [
-            " plus ", " added to ", ' minus ',
-            " without ", ' times ', ' multiplied with ',
-            ' divided by ']
-    DICT_REPLACE = {
-        TOKEN_TYPES.PLUS: [" to ", " and "],
-        TOKEN_TYPES.MINUS: [" from ", " and "],
-        TOKEN_TYPES.MULTIPLY: [" and "],
-        TOKEN_TYPES.DIVIDE: [" by ", " and "]
-    }
-
-    SHOULD_FIND_TYPE = ["the number", "the word"]
-
-    CHECK_IF_CONDITION_DICT = {
-        TOKEN_TYPES.MORE: lambda x, y: x > y,
-        TOKEN_TYPES.LESS: lambda x, y: x < y,
-        TOKEN_TYPES.EQLESS: lambda x, y: x <= y,
-        TOKEN_TYPES.EQMORE: lambda x, y: x >= y,
-        TOKEN_TYPES.EQUALS: lambda x, y: x == y,
-        TOKEN_TYPES.NOTEQ: lambda x, y: x != y
-    }
-
     def __init__(self, text, io=IO()):
         if text == "":
-            print("ПУстой текст")
-            sys.exit(3)
+            raise Exception("ПУстой текст")
         self.tokens = list(Lexer(text))
 
         self.in_method = False
@@ -104,7 +70,7 @@ class Interpretator:
 
     def approptiate_value(self):
         ind_start = self.ind
-        for word in Interpretator.SHOULD_IGNORE:
+        for word in Const.SHOULD_IGNORE:
             if not (word in self.tokens[self.ind+1].command):
                 continue
             variable, value = self.tokens[self.ind + 1].command.split(word)
@@ -129,7 +95,7 @@ class Interpretator:
             self.ind += 2
 
     def init_variable(self, variable, value):
-        for types in Interpretator.SHOULD_FIND_TYPE:
+        for types in Const.SHOULD_FIND_TYPE:
             if types in value:
                 this_type = Lexer.WORDS[types]
                 value = value[
@@ -143,7 +109,7 @@ class Interpretator:
 
     def approptiate_value_operation(self, value, variable):
         this_operation = None
-        for operation in Interpretator.OPERATIONS:
+        for operation in Const.OPERATIONS_STR:
             if operation not in value:
                 continue
             this_operation = Lexer.WORDS[operation[1:-1]]
@@ -231,7 +197,7 @@ class Interpretator:
 
     def start_while(self):
         string = self.tokens[self.ind + 1].command
-        for word in Interpretator.SHOULD_REPLACE:
+        for word in Const.SHOULD_REPLACE:
             if word not in string:
                 continue
             ind_find = string.find(word)
@@ -239,7 +205,7 @@ class Interpretator:
             value = string[ind_find + len(word):]
             string = string.replace(word, " ")
         find_operation = False
-        for eq in Interpretator.COMPARATORS:
+        for eq in Const.COMPARATORS:
             ind_find = string.find(eq) 
             if ind_find == -1:
                 continue
@@ -263,7 +229,7 @@ class Interpretator:
         self.ind += 2
 
     def check_ending_while(self):
-        if not Interpretator.CHECK_IF_CONDITION_DICT[
+        if not Const.CHECK_IF_CONDITION_DICT[
             self.circle[1]](
                 self.variables[self.circle[0]][1], self.circle[2]):       
             self.ind += 1
@@ -272,7 +238,7 @@ class Interpretator:
 
     def start_if(self):
         condition = self.tokens[self.ind + 1].command
-        for word in Interpretator.SHOULD_REPLACE:
+        for word in Const.SHOULD_REPLACE:
             if word not in condition:
                 continue
             first, second = condition.split(word)
@@ -282,7 +248,7 @@ class Interpretator:
             condition = condition.replace(word, " ")
         operation = None
 
-        for e in Interpretator.COMPARATORS:
+        for e in Const.COMPARATORS:
             if e not in condition:
                 continue
             operation = Lexer.WORDS[e[1:-1]]
@@ -292,7 +258,7 @@ class Interpretator:
             second, _was_oinvert = self.try_conver_to_int(second, parts[1])
         if operation is None:
             operation = TOKEN_TYPES.EQUALS
-        if Interpretator.CHECK_IF_CONDITION_DICT[operation](first, second):
+        if Const.CHECK_IF_CONDITION_DICT[operation](first, second):
             self.ind += 2
             self.is_exectute_if = True
         else:
@@ -328,7 +294,7 @@ class Interpretator:
         else:
             using_values_with_types = []
             for value in using_values:
-                for types in Interpretator.SHOULD_FIND_TYPE:
+                for types in Const.SHOULD_FIND_TYPE:
                     if types in value:
                         using_values_with_types.append([value[len(types) + 1:], types])
 
@@ -374,7 +340,7 @@ class Interpretator:
                 elif args[i].isdigit():
                     self.variables[
                         self.method[name_method]['using_values'][i][0]
-                        ] = [TOKEN_TYPES.NUM, int(args[i])]##############3
+                        ] = [TOKEN_TYPES.NUM, int(args[i])]
         else:
             name_method = name_method_with_args
         self.method[name_method]['save_ind'] = self.ind + 2
@@ -450,7 +416,7 @@ class Interpretator:
                     or type_command == TOKEN_TYPES.MULTIPLY
                     or type_command == TOKEN_TYPES.DIVIDE):
                 self.make_arithmetic(
-                    Interpretator.DICT_REPLACE[type_command], type_command)
+                    Const.DICT_REPLACE[type_command], type_command)
             else:
                 try:
                     self.dict_function.get(type_command)()

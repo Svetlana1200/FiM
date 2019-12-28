@@ -1,58 +1,19 @@
 from lexer import Lexer
 from symbolAndCommand import TOKEN_TYPES
 import sys
+from const import Const
 
 
-class ToJava:
-    OPERATION = {
-        TOKEN_TYPES.PLUS: "+",
-        TOKEN_TYPES.MINUS: "-",
-        TOKEN_TYPES.MULTIPLY: "*",
-        TOKEN_TYPES.DIVIDE: "/",
-        TOKEN_TYPES.MORE: '>',
-        TOKEN_TYPES.LESS: '<',
-        TOKEN_TYPES.EQLESS: '<=',
-        TOKEN_TYPES.EQMORE: ">=",
-        TOKEN_TYPES.EQUALS: "==",
-        TOKEN_TYPES.NOTEQ: "!="
-    }
-    
-    SHOULD_IGNORE = [
-            " was ", " is ", " has ",
-            " had ", " like ", " likes ", " liked "
-            ]
-    
-    SHOULD_REPLACE = [
-            " was ", " is ", " has ",
-            " had ", " like ", " likes ", " liked "]
-    SHOULD_FIND_TYPE = ["the number", "the word"]
-    DICT_REPLACE = {
-        TOKEN_TYPES.PLUS: [" to ", " and "],
-        TOKEN_TYPES.MINUS: [" from ", " and "],
-        TOKEN_TYPES.MULTIPLY: [" and "],
-        TOKEN_TYPES.DIVIDE: [" by ", " and "]
-    }
-    OPERATIONS_STR = [
-            " plus ", " added to ", ' minus ',
-            " without ", ' times ', ' multiplied with ',
-            ' divided by ']
-
-    COMPARATORS = [
-            ' no less than ', ' no more than ', ' no greater than ',
-            ' not more ', ' not greater ', ' not less ',
-            ' more than ', ' greater than ', ' less than ', ' not ',
-            ]
-
-
-    def __init__(self, text):
+class Translator:
+    def __init__(self, text, name_class):
         if text == "":
-            print("Пустой текст")
-            sys.exit(3)
+            raise Exception("Пустой текст")
         self.tokens = list(Lexer(text))
         self.ind = 0
         self.variables = {}
         self.method = {}
         self.java_text = []
+        self.name_class = name_class
         
         self.dict_function = {
             TOKEN_TYPES.APPROPRIATION: self.approptiate_value,
@@ -79,8 +40,7 @@ class ToJava:
     
     
     def approptiate_value(self):
-        ind_start = self.ind
-        for word in ToJava.SHOULD_IGNORE:
+        for word in Const.SHOULD_IGNORE:
             if word in self.tokens[self.ind+1].command:
                 variable, value = self.tokens[self.ind + 1].command.split(word)
                 if variable.replace(' ', '_') in self.variables:
@@ -88,6 +48,8 @@ class ToJava:
                     if (self.variables[variable] is not None and self.variables[variable][0] == TOKEN_TYPES.NUM
                             and value.isdigit()):
                         self.java_text.append(f"{variable} = {value};")
+                    elif (self.variables[variable] is not None and self.variables[variable][0] == TOKEN_TYPES.STRING):
+                        self.java_text.append(f'{variable} = "{value}";')
                     elif value.replace(' ', '_') in self.variables:
                         value = value.replace(' ', '_')
                         self.java_text.append(f"{variable} = {value};")
@@ -105,7 +67,7 @@ class ToJava:
         self.ind += 2
 
     def init_variable(self, variable, value):
-        for types in ToJava.SHOULD_FIND_TYPE:
+        for types in Const.SHOULD_FIND_TYPE:
             if types in value:
                 this_type = Lexer.WORDS[types]
                 value = value[
@@ -113,6 +75,8 @@ class ToJava:
                 if (this_type == TOKEN_TYPES.NUM and
                         value.rstrip() != ""):
                     value = int(value)
+                elif this_type == TOKEN_TYPES.STRING:
+                    value = f'"{value}"'
                 variable = variable.replace(' ', '_')
                 self.variables[variable] = [
                     this_type, value]
@@ -124,7 +88,7 @@ class ToJava:
 
     def approptiate_value_operation(self, value, variable):
         this_operation = None
-        for operation in ToJava.OPERATIONS_STR:
+        for operation in Const.OPERATIONS_STR:
             if operation in value:
                 this_operation = Lexer.WORDS[operation[1:-1]]
                 first, second = value.split(operation)
@@ -134,7 +98,7 @@ class ToJava:
         else:            
             first = first.replace(' ', '_')
             second = second.replace(' ', '_')
-            self.java_text.append(f'{variable} = {first} {ToJava.OPERATION[this_operation]} {second};')
+            self.java_text.append(f'{variable} = {first} {Const.OPERATION[this_operation]} {second};')
 
     def approptiate_value_method(self, value, variable, has_args):
         arguments = ""
@@ -171,7 +135,7 @@ class ToJava:
         else:
             using_values_with_types = []
             for value in using_values:
-                for types in ToJava.SHOULD_FIND_TYPE:
+                for types in Const.SHOULD_FIND_TYPE:
                     if types in value:
                         ind = len(types) + 1
                         val = value[ind:].replace(' ', '_')
@@ -188,14 +152,14 @@ class ToJava:
 
     def start_if(self):
         condition = self.tokens[self.ind + 1].command
-        for word in ToJava.SHOULD_REPLACE:
+        for word in Const.SHOULD_REPLACE:
             if word in condition:
                 first, second = condition.split(word)
                 second = second.replace(" then", "")
                 condition = condition.replace(word, " ")
                 break
         operation = TOKEN_TYPES.EQUALS
-        for e in ToJava.COMPARATORS:
+        for e in Const.COMPARATORS:
             if e in condition:
                 condition = condition.replace(" then", "")
                 first, second = condition.split(e)
@@ -204,7 +168,7 @@ class ToJava:
         second_sep = first_sep = ""
         first = first.replace(' ', '_')
         second = second.replace(' ', '_')
-        equals = f' {ToJava.OPERATION[operation]} {second}'
+        equals = f' {Const.OPERATION[operation]} {second}'
         if not second.isdigit() and second not in self.variables:
             second_sep = '"'
             equals = f".equals({second_sep}{second}{second_sep})"
@@ -231,20 +195,20 @@ class ToJava:
 
     def start_while(self):
         string = self.tokens[self.ind + 1].command
-        for word in ToJava.SHOULD_REPLACE:
+        for word in Const.SHOULD_REPLACE:
             if word in string:
                 ind_find = string.find(word)
                 name = string[: ind_find].replace(' ', '_')
                 value = string[ind_find + len(word):]
                 string = string.replace(word, " ")
                 break     
-        operation = ToJava.OPERATION[TOKEN_TYPES.EQUALS]
-        for eq in ToJava.COMPARATORS:
+        operation = Const.OPERATION[TOKEN_TYPES.EQUALS]
+        for eq in Const.COMPARATORS:
             ind_find = string.find(eq)
             if ind_find != -1:
                 name = string[: ind_find].replace(' ', '_')
                 value = string[ind_find + len(eq):]
-                operation = ToJava.OPERATION[Lexer.WORDS[eq[1:-1]]]
+                operation = Const.OPERATION[Lexer.WORDS[eq[1:-1]]]
                 break
         self.java_text.append(f'while ({name} {operation} {value})'" {")
         self.ind += 2
@@ -258,15 +222,13 @@ class ToJava:
                     first, second = second, first
         first = first.replace(' ', '_')
         second = second.replace(' ', '_')
-        self.java_text.append(f'{second} {ToJava.OPERATION[operation]}= {first};')
+        self.java_text.append(f'{second} {Const.OPERATION[operation]}= {first};')
         self.ind += 2
 
     def start_class(self):
         self.ind += 3
-        name_class = self.tokens[self.ind].command.replace(' ', '_')
-        #self.java_text.append(f"public class {name_class} " + "{")
         self.java_text.append("import java.util.Scanner;")
-        self.java_text.append(f"public class Program " + "{")
+        self.java_text.append(f"public class {self.name_class} " + "{")
         self.ind += 2
 
     def end_class(self):
@@ -347,7 +309,7 @@ class ToJava:
                     or type_command == TOKEN_TYPES.MULTIPLY
                     or type_command == TOKEN_TYPES.DIVIDE):
                 self.make_arithmetic(
-                    ToJava.DICT_REPLACE[type_command], type_command)
+                    Const.DICT_REPLACE[type_command], type_command)
             else:
                 try:
                     self.dict_function.get(type_command)()

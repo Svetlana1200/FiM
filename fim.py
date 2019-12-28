@@ -1,8 +1,9 @@
 import sys
 import os
 from interpretator import Interpretator
-from toJava import ToJava
+from toJava import Translator
 import argparse
+import traceback
 
 
 def main():
@@ -12,27 +13,25 @@ def main():
     namespace = parser.parse_args(sys.argv[1:])
     try:
         if namespace.file_name:
-            path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "programs",  namespace.file_name)
+            path = namespace.file_name
             with open(path, 'r') as f:
                 text = f.read().rstrip()
         else:
             text = sys.stdin.read().rstrip()
     except Exception:
-        print("Не удается найти указанный файл.")
-        sys.exit(1)
-    except PermissionError:
-        print("Не удается прочитать указанный файл.")
+        print('Ошибка:\n', traceback.format_exc())
         sys.exit(1)
     
     if namespace.to_java:
-        j = ToJava(text)
+        j = Translator(text, os.path.splitext(namespace.to_java)[0])
         j.translate()
-        java_text = j.correct_text().replace('public class Program', f'public class {namespace.to_java[:-5]}')
+        java_text = j.correct_text()
+        print(java_text)
         try:
             with open(namespace.to_java, 'w') as f:
                 f.write(java_text)
-        except (Exception, PermissionError):
-            print("Не удается прочитать указанный файл.")
+        except Exception:
+            print('Ошибка:\n', traceback.format_exc())
             sys.exit(1)
     else:
         i = Interpretator(text)
